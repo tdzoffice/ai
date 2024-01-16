@@ -60,10 +60,10 @@ def before_request():
     # Get the client's IP address, considering it may be behind a proxy
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
 
-    # if client_ip in BANNED_IPS:
-    #     # IP is banned, return a 403 Forbidden response
-    #     #return jsonify({'message': 'Forbidden '}), 403
-    #     return jsonify({'message': f'Forbidden: {client_ip}'}), 403
+    if client_ip in BANNED_IPS:
+        # IP is banned, return a 403 Forbidden response
+        #return jsonify({'message': 'Forbidden '}), 403
+        return jsonify({'message': f'Forbidden: {client_ip}'}), 403
 
     if not authenticate():
         return jsonify({'message': 'Unauthorized'}), 401
