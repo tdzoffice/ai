@@ -379,6 +379,48 @@ def modify_shop():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+
+# New route to find a shop by ID
+@app.route('/findShopByID', methods=['GET'])
+def find_shop_by_id():
+    try:
+        # Get the shop ID from the request
+        shop_id = request.args.get('id')
+
+        # Query the shop from the database by ID
+        shop = Shop.query.get(shop_id)
+
+        if shop:
+            # Convert the shop object to a dictionary
+            shop_data = {
+                'id': shop.id,
+                'name': shop.name,
+                'address': shop.address,
+                'phone': shop.phone,
+                'isHalalCertified': shop.is_halal_certified,
+                'socialMediaLink': shop.social_media_link,
+                'latitude': shop.latitude,
+                'longitude': shop.longitude,
+                'expireOn': shop.expire_on.strftime('%Y-%m-%d'),
+                'description': shop.description,
+                'cluster': shop.cluster,
+                'foodCategory': shop.food_category,
+                'shopType': shop.shop_type,
+                'remark': shop.remark,
+                'preserved1': shop.preserved1,
+                'preserved2': shop.preserved2,
+                'note': "no image, for debug only",
+                # Add other relevant fields as needed
+            }
+
+            return jsonify({'shop': shop_data}), 200
+        else:
+            return jsonify({'message': 'Shop not found'}), 404
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/deleteShop', methods=['POST'])
 @limiter.limit("100/day;10/hour;1/minute")
 def delete_shop():
