@@ -50,7 +50,7 @@ def authenticate():
     else:
         # Unauthorized access
         # Ban the IP if not authorized
-        BANNED_IPS.add(client_ip)
+        # BANNED_IPS.add(client_ip)
         return False
 
 # Apply the authentication middleware to the route
