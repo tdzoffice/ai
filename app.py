@@ -22,7 +22,7 @@ CORS(app)
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["200 per day", "3 per hour"],
+    default_limits=["1440 per day", "120 per hour"],
     storage_uri="memory://",
 )
 app.wsgi_app = ProxyFix(app.wsgi_app)
