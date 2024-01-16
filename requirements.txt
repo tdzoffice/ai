@@ -3,3 +3,4 @@ Flask-SQLAlchemy
 Flask-Cors
 python-dotenv
 Gunicorn
+Flask-Limiter

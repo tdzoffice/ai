@@ -9,11 +9,27 @@ from dotenv import load_dotenv
 from datetime import datetime
 
 from math import radians, sin, cos, sqrt, atan2
-from sqlalchemy import func, Numeric, cast
+
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 app = Flask(__name__)
 CORS(app)
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "3 per hour"],
+    storage_uri="memory://",
+)
+app.wsgi_app = ProxyFix(app.wsgi_app)
+
+# Set of banned IP addresses
+BANNED_IPS = set()
+
 
 # Secret key for authentication
 SECRET_KEY_A = 'THAW_DE_ZIN'  
@@ -24,16 +40,31 @@ def authenticate():
     secret = request.headers.get('secret')
     user_agent = request.headers.get('User-Agent')
 
+    # Get the client's IP address, considering it may be behind a proxy
+    client_ip = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
+
+
     if secret == SECRET_KEY_A and user_agent == EXPECTED_USER_AGENT:
         # Proceed to the next middleware or route handler
         return True
     else:
         # Unauthorized access
+        # Ban the IP if not authorized
+        BANNED_IPS.add(client_ip)
         return False
 
 # Apply the authentication middleware to the route
 @app.before_request
 def before_request():
+
+    # Get the client's IP address, considering it may be behind a proxy
+    client_ip = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
+
+    # if client_ip in BANNED_IPS:
+    #     # IP is banned, return a 403 Forbidden response
+    #     #return jsonify({'message': 'Forbidden '}), 403
+    #     return jsonify({'message': f'Forbidden: {client_ip}'}), 403
+
     if not authenticate():
         return jsonify({'message': 'Unauthorized'}), 401
 
@@ -125,6 +156,7 @@ def add_new_shop():
 
 # New route to retrieve all shops
 @app.route('/retrieveAllShop', methods=['GET'])
+@limiter.limit("100/day;10/hour;1/minute")
 def retrieve_all_shop():
     try:
         # Get pagination parameters from the request or use default values
@@ -348,6 +380,7 @@ def modify_shop():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/deleteShop', methods=['POST'])
+@limiter.limit("100/day;10/hour;1/minute")
 def delete_shop():
     data = request.json
 
