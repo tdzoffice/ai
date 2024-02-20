@@ -1,13 +1,8 @@
-# api_israfil/app.py
-
-import os
-import math
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # Assuming you decide to use it
 from datetime import datetime
-
 from math import radians, sin, cos, sqrt, atan2
 
 from flask_limiter import Limiter
@@ -15,6 +10,19 @@ from flask_limiter.util import get_remote_address
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from sqlalchemy import URL, create_engine
+
+# Replace with your actual PostgreSQL connection details
+connection_string = URL.create(
+    'postgresql',
+    username='thawdezin.office',
+    password='jJyMXPvdsm63',
+    host='ep-rough-rice-a1zsohm3.ap-southeast-1.aws.neon.tech',
+    database='israfil',
+    query={'sslmode': 'require'}  # Pass SSL mode as part of the query string
+)
+
+engine = create_engine(connection_string)
 
 app = Flask(__name__)
 CORS(app)
@@ -27,12 +35,14 @@ limiter = Limiter(
 )
 app.wsgi_app = ProxyFix(app.wsgi_app)
 
+# Set SQLAlchemy database URI
+app.config['SQLALCHEMY_DATABASE_URI'] = connection_string
+
 # Set of banned IP addresses
 BANNED_IPS = set()
 
-
 # Secret key for authentication
-SECRET_KEY_A = 'THAW_DE_ZIN'  
+SECRET_KEY_A = 'THAW_DE_ZIN'
 EXPECTED_USER_AGENT = 'Hsu Myat Wai'
 
 # Middleware function to validate the secret key
@@ -43,14 +53,13 @@ def authenticate():
     # Get the client's IP address, considering it may be behind a proxy
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
 
-
     if secret == SECRET_KEY_A and user_agent == EXPECTED_USER_AGENT:
         # Proceed to the next middleware or route handler
         return True
     else:
         # Unauthorized access
         # Ban the IP if not authorized
-        # BANNED_IPS.add(client_ip)
+        BANNED_IPS.add(client_ip)
         return False
 
 # Apply the authentication middleware to the route
@@ -62,32 +71,13 @@ def before_request():
 
     if client_ip in BANNED_IPS:
         # IP is banned, return a 403 Forbidden response
-        #return jsonify({'message': 'Forbidden '}), 403
         return jsonify({'message': f'Forbidden: {client_ip}'}), 403
 
     if not authenticate():
         return jsonify({'message': 'Unauthorized'}), 401
 
-# Load environment variables from .env file
-load_dotenv()
-
-# Get the DATABASE_URL and SECRET_KEY from the environment variables
-DATABASE_URL = os.environ.get('DATABASE_URL')
-SECRET_KEY = os.environ.get('SECRET_KEY')
-
-if DATABASE_URL is None:
-    raise Exception("DATABASE_URL not found in environment variables. Check your .env file.")
-
-if SECRET_KEY is None:
-    raise Exception("SECRET_KEY not found in environment variables. Check your .env file.")
-
-# Configure SQLite
-DATABASE_PATH = os.path.join(app.root_path, DATABASE_URL)
-DATABASE_URI = f'sqlite:///{DATABASE_PATH}'
-app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
-app.config['SQLALCHEMY_BINDS'] = {'tdz': f'sqlite:///{DATABASE_PATH}'}
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = SECRET_KEY
+# Load environment variables from .env file (optional)
+# load_dotenv()
 
 # Initialize extensions
 db = SQLAlchemy(app)
@@ -105,7 +95,7 @@ class Shop(db.Model):
     description = db.Column(db.Text)
     cluster = db.Column(db.String(50))
     food_category = db.Column(db.String(50))
-    shop_type = db.Column(db.String(100))  
+    shop_type = db.Column(db.String(100))
     remark = db.Column(db.Text)
     img1 = db.Column(db.Text)
     img2 = db.Column(db.Text)
@@ -261,8 +251,6 @@ def near_or_not():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
-
 # New route to search for nearest shops
 @app.route('/searchNearShop', methods=['GET'])
 def search_near_shop():
@@ -405,45 +393,42 @@ def find_shop_by_id():
                 'description': shop.description,
                 'cluster': shop.cluster,
                 'foodCategory': shop.food_category,
-                'shopType': shop.shop_type,
+                'shopType': shop.shop_type,  
                 'remark': shop.remark,
+                'img1': shop.img1,
+                'img2': shop.img2,
+                'img3': shop.img3,
                 'preserved1': shop.preserved1,
-                'preserved2': shop.preserved2,
-                'note': "no image, for debug only",
+                'preserved2': shop.preserved2
                 # Add other relevant fields as needed
             }
-
-            return jsonify({'shop': shop_data}), 200
+            return jsonify(shop_data), 200
         else:
-            return jsonify({'message': 'Shop not found'}), 404
-
+            return jsonify({'error': 'Shop not found'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
+# New route to delete a shop by ID
 @app.route('/deleteShop', methods=['POST'])
-@limiter.limit("100/day;10/hour;1/minute")
 def delete_shop():
-    data = request.json
-
-    # Check if the 'id' is provided in the request
-    if 'id' not in data:
-        return jsonify({'error': 'Missing shop ID'}), 400
-
-    # Query the shop to be deleted
-    shop_to_delete = Shop.query.get(data['id'])
-
-    # Check if the shop with the given ID exists
-    if shop_to_delete is None:
-        return jsonify({'error': 'Shop not found'}), 404
-
     try:
-        db.session.delete(shop_to_delete)
-        db.session.commit()
-        return jsonify({'message': 'Shop deleted successfully'}), 200
+        # Get the shop ID from the request
+        data = request.json
+        shop_id = data.get('id')
+
+        # Query the shop from the database by ID
+        shop = Shop.query.get(shop_id)
+
+        if shop:
+            db.session.delete(shop)
+            db.session.commit()
+            return jsonify({'message': 'Shop deleted successfully'}), 200
+        else:
+            return jsonify({'error': 'Shop not found'}), 404
     except Exception as e:
-        db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
