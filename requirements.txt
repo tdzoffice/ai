@@ -1,6 +1,7 @@
 Flask
 Flask-SQLAlchemy
 Flask-Cors
-python-dotenv
 Gunicorn
 Flask-Limiter
+psycopg2
+psycopg2-binary

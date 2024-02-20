@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-from dotenv import load_dotenv  # Assuming you decide to use it
 from datetime import datetime
 from math import radians, sin, cos, sqrt, atan2
 
